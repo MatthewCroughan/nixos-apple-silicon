@@ -34,6 +34,7 @@
   swapDevices = lib.mkOverride 60 [ ];
   fileSystems = lib.mkOverride 60 config.lib.isoFileSystems;
 
+<<<<<<< HEAD
   boot.postBootCommands =
     let
       inherit (config.hardware.asahi.pkgs) asahi-fwextract;
@@ -62,10 +63,18 @@
       popd
       rm -rf /tmp/.fwsetup
     '';
-
-  # can't legally be incorporated into the installer image
-  # (and is automatically extracted at boot above)
-  hardware.asahi.extractPeripheralFirmware = false;
+=======
+  boot.postBootCommands = ''
+    for o in $(</proc/cmdline); do
+      case "$o" in
+        live.nixos.passwd=*)
+          set -- $(IFS==; echo $o)
+          echo "nixos:$2" | ${pkgs.shadow}/bin/chpasswd
+          ;;
+      esac
+    done
+  '';
+>>>>>>> 08de373 (peripheral-firmware: extract on boot by default)
 
   isoImage.squashfsCompression = "zstd -Xcompression-level 6";
 
@@ -92,7 +101,10 @@
     enable = true;
     settings.General.EnableNetworkConfiguration = true;
   };
+<<<<<<< HEAD
   networking.networkmanager.enable = lib.mkForce false;
+=======
+>>>>>>> 08de373 (peripheral-firmware: extract on boot by default)
 
   # let user know to use iwctl to get access to iwd
   services.getty.helpLine = lib.mkForce ''
