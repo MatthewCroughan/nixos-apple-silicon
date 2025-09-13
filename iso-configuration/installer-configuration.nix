@@ -5,13 +5,7 @@
 # based vaguely on
 # https://github.com/samueldr/cross-system/blob/master/configuration.nix
 
-{
-  config,
-  pkgs,
-  lib,
-  modulesPath,
-  ...
-}:
+{ config, pkgs, lib, modulesPath, ... }:
 
 {
   imports = [
@@ -24,7 +18,7 @@
   console.packages = [ pkgs.terminus_font ];
 
   # ISO naming.
-  image.fileName = "${config.image.baseName}-${config.system.nixos.label}-${pkgs.stdenv.hostPlatform.system}.iso";
+  isoImage.isoName = "${config.isoImage.isoBaseName}-${config.system.nixos.label}-${pkgs.stdenv.hostPlatform.system}.iso";
 
   # EFI booting
   isoImage.makeEfiBootable = true;
@@ -34,38 +28,16 @@
   swapDevices = lib.mkOverride 60 [ ];
   fileSystems = lib.mkOverride 60 config.lib.isoFileSystems;
 
-  boot.postBootCommands =
-    let
-      inherit (config.hardware.asahi.pkgs) asahi-fwextract;
-    in
-    ''
-      for o in $(</proc/cmdline); do
-        case "$o" in
-          live.nixos.passwd=*)
-            set -- $(IFS==; echo $o)
-            echo "nixos:$2" | ${pkgs.shadow}/bin/chpasswd
-            ;;
-        esac
-      done
-
-      echo Extracting Asahi firmware...
-      mkdir -p /tmp/.fwsetup/{esp,extracted}
-
-      mount /dev/disk/by-partuuid/`cat /proc/device-tree/chosen/asahi,efi-system-partition` /tmp/.fwsetup/esp
-      ${asahi-fwextract}/bin/asahi-fwextract /tmp/.fwsetup/esp/asahi /tmp/.fwsetup/extracted
-      umount /tmp/.fwsetup/esp
-
-      pushd /tmp/.fwsetup/
-      cat /tmp/.fwsetup/extracted/firmware.cpio | ${pkgs.cpio}/bin/cpio -id --quiet --no-absolute-filenames
-      mkdir -p /lib/firmware
-      mv vendorfw/* /lib/firmware
-      popd
-      rm -rf /tmp/.fwsetup
-    '';
-
-  # can't legally be incorporated into the installer image
-  # (and is automatically extracted at boot above)
-  hardware.asahi.extractPeripheralFirmware = false;
+  boot.postBootCommands = ''
+    for o in $(</proc/cmdline); do
+      case "$o" in
+        live.nixos.passwd=*)
+          set -- $(IFS==; echo $o)
+          echo "nixos:$2" | ${pkgs.shadow}/bin/chpasswd
+          ;;
+      esac
+    done
+  '';
 
   isoImage.squashfsCompression = "zstd -Xcompression-level 6";
 
@@ -96,18 +68,6 @@
     enable = true;
     settings.General.EnableNetworkConfiguration = true;
   };
-  networking.networkmanager.enable = lib.mkForce false;
-
-  # let user know to use iwctl to get access to iwd
-  services.getty.helpLine = lib.mkForce ''
-    The "nixos" and "root" accounts have empty passwords.
-
-    To log in over ssh you must set a password for either "nixos" or "root"
-    with `passwd` (prefix with `sudo` for "root"), or add your public key to
-    /home/nixos/.ssh/authorized_keys or /root/.ssh/authorized_keys.
-
-    To set up a wireless connection, run `iwctl`.
-  '';
 
   nixpkgs.overlays = [
     (final: prev: {
